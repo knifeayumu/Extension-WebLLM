@@ -161,6 +161,36 @@ for await (const { text } of stream) {
 }
 ```
 
+### Get embedding models
+
+To get all the available embedding models, use the `getEmbeddingModels` method.
+
+Returns an array of objects with the following properties:
+
+* id: The model ID.
+* vram_required: The amount of VRAM required to load the model in MB.
+
+> -b in the model name means the batch size it allows. The smaller it is, the less memory the model consumes.
+
+```js
+const models = await SillyTavern.llm.getEmbeddingModels();
+// models = [{id: 'snowflake-arctic-embed-m-q0f32-MLC-b32', vram_required: 1407.51}, ...]
+```
+
+### Generate an embedding
+
+To generate an embedding for a given text or array of texts, use the `generateEmbedding` method.
+
+Returns an array of array of numbers, where each inner array represents the embedding of a text with the same index.
+
+```js
+const modelId = 'snowflake-arctic-embed-m-q0f32-MLC-b32';
+const text = 'Hello, world!';
+const engine = SillyTavern.llm.getEngine(modelId);
+const embedding = await engine.generateEmbedding([text]);
+// embedding = [ [0.1, 0.2, ...] ]
+```
+
 ## Configuration
 
 Default parameters can be configured in the extension settings, including the preferred model.

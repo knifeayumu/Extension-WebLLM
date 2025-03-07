@@ -12,6 +12,12 @@ import _ from 'lodash';
  */
 
 /**
+ * @typedef {Object} EmbeddingModelView Embedding model view model
+ * @property {string} id Model ID
+ * @property {number} vram_required VRAM required in MB
+ */
+
+/**
  * @typedef {Object} CompletionParam Additional parameters for completion
  * @property {number} [max_tokens] Maximum tokens to generate
  * @property {number} [temperature] Sampling temperature
@@ -154,6 +160,23 @@ class WebLLMEngineWrapper extends EventTarget {
     }
 
     /**
+     * Convert a model object to an embedding view model.
+     * @param {webllm.ModelRecord} model Model object
+     * @returns
+     */
+    #modelToEmbeddingViewModel(model) {
+        if (!model) {
+            return null;
+        }
+
+        return {
+            id: model.model_id,
+            vram_required: model.vram_required_MB,
+            toString: () => `${model.model_id} | ${Number(model.vram_required_MB / 1024).toFixed(1)} GB`,
+        };
+    }
+
+    /**
      * Try to parse a JSON string. Returns null if parsing fails.
      * @param {string} json JSON string
      * @returns {Object} Parsed JSON object or null
@@ -213,8 +236,21 @@ class WebLLMEngineWrapper extends EventTarget {
         return webllm
             .prebuiltAppConfig
             .model_list
-            .filter(x => x.model_type !== 'embedding')
+            .filter(x => x.model_type !==  webllm.ModelType.embedding)
             .map(this.#modelToViewModel)
+            .sort((a, b) => a.id.localeCompare(b.id));
+    }
+
+    /**
+     * Get a list of embedding models available in the prebuilt app.
+     * @returns {EmbeddingModelView[]} Array of embedding model view models
+     */
+    getEmbeddingModels() {
+        return webllm
+            .prebuiltAppConfig
+            .model_list
+            .filter(x => x.model_type === webllm.ModelType.embedding)
+            .map(this.#modelToEmbeddingViewModel)
             .sort((a, b) => a.id.localeCompare(b.id));
     }
 
@@ -275,6 +311,31 @@ class WebLLMEngineWrapper extends EventTarget {
         } catch (error) {
             console.error(error);
             if (!this.#silent) toastr.error(`Failed to load model: ${error.message}`, 'WebLLM');
+        } finally {
+            this.#lock.releaseLock();
+        }
+    }
+
+    /**
+     * Generates an embedding for the given texts using the specified model.
+     * @param {string|string[]} text Text to embed
+     * @param {string} [modelId] Model ID
+     * @returns {Promise<number[][]>} Promise that resolves to an array of embeddings
+     */
+    async generateEmbedding(text, modelId = null) {
+        try {
+            await this.#lock.acquireLock();
+            await this.#initEngine(modelId);
+            const request = {
+                input: text,
+                model: modelId,
+                encoding_format: 'float',
+            };
+            const embedding = await this.#generateWithRetry(() => this.#engine.embedding(request));
+            return embedding?.data?.sort(x => x.index)?.map(x => x.embedding) ?? [];
+        } catch (error) {
+            console.error(error);
+            if (!this.#silent) toastr.error(`Failed to embed: ${error.message}`, 'WebLLM');
         } finally {
             this.#lock.releaseLock();
         }
