@@ -317,18 +317,16 @@ class WebLLMEngineWrapper extends EventTarget {
     }
 
     /**
-     * Generates an embedding for the given texts using the specified model.
+     * Generates an embedding for the given texts. Requires an embedding model to be loaded.
      * @param {string|string[]} text Text to embed
-     * @param {string} [modelId] Model ID
      * @returns {Promise<number[][]>} Promise that resolves to an array of embeddings
      */
-    async generateEmbedding(text, modelId = null) {
+    async generateEmbedding(text) {
         try {
             await this.#lock.acquireLock();
-            await this.#initEngine(modelId);
+            await this.#initEngine();
             const request = {
                 input: text,
-                model: modelId,
                 encoding_format: 'float',
             };
             const embedding = await this.#generateWithRetry(() => this.#engine.embedding(request));
