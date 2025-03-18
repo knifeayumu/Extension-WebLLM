@@ -648,6 +648,7 @@ class WebLLMSettingsManager {
 
 // Expose the API to the SillyTavern global object
 (function () {
+    webllm.prebuiltAppConfig.useIndexedDBCache = !('caches' in window);
     const settingsManager = new WebLLMSettingsManager();
     const defaultModel = settingsManager.readValue('model');
     const defaultEngine = new WebLLMEngineWrapper(defaultModel, false);
